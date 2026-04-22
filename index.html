@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FREE OSINT TOOLS BY NOLAN</title>
+    <title>OSINT TOOLS BY NOLAN</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
     <style>
@@ -44,6 +44,7 @@
         .result-area { margin-top: 24px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 13px; overflow-x: auto; }
         .exif-tag { color: #71717a; font-weight: 600; margin-right: 8px; }
         .exif-val { color: #18181b; }
+        .gps-box { margin-top: 15px; padding: 10px; background: #ecfdf5; border: 1px solid #10b981; border-radius: 6px; }
     </style>
 </head>
 <body>
@@ -149,39 +150,43 @@
             r.innerHTML = "Analyse en cours...";
 
             EXIF.getData(file, function() {
-                const allData = EXIF.getAllTags(this);
-                if (Object.keys(allData).length === 0) {
-                    r.innerHTML = "Aucune donnée EXIF trouvée dans cette image.";
+                const tags = EXIF.getAllTags(this);
+                if (Object.keys(tags).length === 0) {
+                    r.innerHTML = "Aucune donnée EXIF trouvée.";
                     return;
                 }
 
-                let html = `<div class="mb-2"><strong>Fichier :</strong> ${file.name}</div><div class="grid gap-1">`;
-                for (let tag in allData) {
-                    if (typeof allData[tag] !== 'function' && typeof allData[tag] !== 'object') {
-                        html += `<div><span class="exif-tag">${tag}:</span><span class="exif-val">${allData[tag]}</span></div>`;
+                let html = `<div class="mb-4"><strong>Fichier :</strong> ${file.name}</div>`;
+
+                if (tags.GPSLatitude && tags.GPSLongitude) {
+                    const lat = convertExifToDecimal(tags.GPSLatitude, tags.GPSLatitudeRef);
+                    const lon = convertExifToDecimal(tags.GPSLongitude, tags.GPSLongitudeRef);
+                    
+                    html += `<div class="gps-box">
+                                <div class="font-bold text-green-800 mb-1">Coordonnées GPS trouvées :</div>
+                                <div>Lat: ${lat.toFixed(6)} | Lon: ${lon.toFixed(6)}</div>
+                                <a href="https://www.google.com/maps?q=${lat},${lon}" target="_blank" class="text-blue-600 underline font-bold">Ouvrir dans Google Maps</a>
+                             </div><br>`;
+                }
+
+                html += `<div class="grid gap-1">`;
+                for (let tag in tags) {
+                    if (typeof tags[tag] !== 'function' && typeof tags[tag] !== 'object') {
+                        html += `<div><span class="exif-tag">${tag}:</span><span class="exif-val">${tags[tag]}</span></div>`;
                     }
                 }
-                
-                if (allData.GPSLatitude) {
-                    const lat = decodeGPS(allData.GPSLatitude, allData.GPSLatitudeRef);
-                    const lon = decodeGPS(allData.GPSLongitude, allData.GPSLongitudeRef);
-                    html += `<div class="mt-4 p-2 bg-green-50 border border-green-100 rounded">
-                                <span class="exif-tag">Localisation :</span>
-                                <a href="https://www.google.com/maps?q=${lat},${lon}" target="_blank" class="text-blue-600 underline">${lat.toFixed(6)}, ${lon.toFixed(6)}</a>
-                             </div>`;
-                }
-                
                 html += "</div>";
                 r.innerHTML = html;
             });
         };
 
-        function decodeGPS(exifCoord, ref) {
-            let degrees = exifCoord[0].numerator / exifCoord[0].denominator;
-            let minutes = exifCoord[1].numerator / exifCoord[1].denominator;
-            let seconds = exifCoord[2].numerator / exifCoord[2].denominator;
-            let flip = (ref == 'W' || ref == 'S') ? -1 : 1;
-            return flip * (degrees + (minutes / 60) + (seconds / 3600));
+        function convertExifToDecimal(coord, ref) {
+            let d = coord[0].numerator / coord[0].denominator;
+            let m = coord[1].numerator / coord[1].denominator;
+            let s = coord[2].numerator / coord[2].denominator;
+            let dec = d + (m / 60) + (s / 3600);
+            if (ref === "S" || ref === "W") dec = dec * -1;
+            return dec;
         }
     </script>
 </body>
